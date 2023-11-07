@@ -1,0 +1,8 @@
+"./src/InitDevice.OBJ",
+"./src/Interrupts.OBJ",
+"./src/adc.OBJ",
+"./src/button.OBJ",
+"./src/gen.OBJ",
+"./src/main.OBJ",
+"./src/sbus.OBJ"
+TO "SBUS_4CH_PWM.OMF.CRBUILD" REMOVEUNUSED PRINT(.\Sbus_4ch_pwm.m51) PAGEWIDTH (120) PAGELENGTH (65) CLASSES( ECODE(C:0x0 - C:0x37fe), HCONST(C:0x0 - C:0x37fe), XDATA(X:0x0 - X:0x3ff), HDATA(X:0x0 - X:0x3ff))

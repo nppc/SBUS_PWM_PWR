@@ -1,0 +1,113 @@
+C51 COMPILER V9.60.0.0   GEN                                                               11/04/2023 21:14:42 PAGE 1   
+
+
+C51 COMPILER V9.60.0.0, COMPILATION OF MODULE GEN
+OBJECT MODULE PLACED IN .\src\gen.OBJ
+COMPILER INVOKED BY: C:\SiliconLabs\SimplicityStudio\v5_3\developer\toolchains\keil_8051\9.60\BIN\C51.exe C:\src\Tennp\G
+                    -it\SBUS_PWM_PWR\Firmware\src\gen.c OMF2 SMALL DEBUG OBJECTEXTEND ROM(LARGE) WARNINGLEVEL(2) FLOATFUZZY(3) OPTIMIZE(8,SPE
+                    -ED) DEFINE(DEBUG=1) INTVECTOR(0X0000) INTPROMOTE INCDIR(C:/SiliconLabs/SimplicityStudio/v5_3/developer/sdks/8051/v4.2.3/
+                    -/Device/EFM8BB51/inc;C:/SiliconLabs/SimplicityStudio/v5_3/developer/sdks/8051/v4.2.3//Device/shared/si8051Base) PRINT(.\
+                    -src\gen.lst) COND PAGEWIDTH(120) PAGELENGTH(65) OBJECT(.\src\gen.OBJ)
+
+line level    source
+
+   1          #include "main.h"
+   2          #include "button.h"
+   3          #include "adc.h"
+   4          
+   5          #define LOW_BATTERY_VOLTAGE 3400
+   6          uint8_t low_volt_counter = 0;
+   7          
+   8          void waitNms(uint16_t ms){
+   9   1        // convert ms to timer ticks
+  10   1        // 1tick of PCA0 at div4 = 0.08163265us
+  11   1        // 1ms = 49000 timer ticks (H register = 48)
+  12   1        // we can use PCA timer ticks as it runs always with SYSCK/4 speed
+  13   1        // lets use only PCA0H to make it easier to work with 16bit registers of timer that we can't pause
+  14   1        uint8_t tmp,tmp1;
+  15   1        while(ms!=0){
+  16   2          tmp = PCA0L; // we need to read first PCA0L to latch PCA0H
+  17   2          tmp = PCA0H;
+  18   2          tmp+=48;
+  19   2            while(1){
+  20   3              tmp1 = PCA0L; // we need to read first PCA0L to latch PCA0H
+  21   3              tmp1 = PCA0H;
+  22   3              if(tmp1 == tmp){break;}
+  23   3          }
+  24   2          ms--;
+  25   2        }
+  26   1      }
+  27          
+  28          uint16_t convert_sbus_2_pwm(uint16_t val){
+  29   1      // ErSky9X pwm range for -125% 0 125% in us: 860-1500-2140
+  30   1      // SBus range for these numbers is somehow not very symmetric:
+  31   1      // 0 - 992 - 2014 (lower range is 992, higher range is 1022).
+  32   1      // Scale numbers are 0.645161 and 0.626223 respectively.
+  33   1      // Average scaling value is 0.63569.
+  34   1      // The coefficient 6.125 is for PCA0/PWM0 counter value.
+  35   1      
+  36   1      //  uint16_t us = (uint16_t)((float)val * 0.63569) + 860;
+  37   1      //  return (uint16_t)((float)us * 6.125);
+  38   1      // Reduce one multiplication:
+  39   1        return (uint16_t)((float)val * 3.8936) + 5267;
+  40   1      }
+  41          
+  42          void goPowerDown(void){
+  43   1        // turn off pwm
+  44   1        IE_EA = 0; //diasble interrupts
+  45   1        PCA0CPL0 = 0x00;
+  46   1        PCA0CPH0 = 0x00;
+  47   1        PCA0CPL1 = 0x00;
+  48   1        PCA0CPH1 = 0x00;
+  49   1        SFRPAGE = 0x10;
+  50   1        PWMCPUDL0 = 0x00;
+  51   1        PWMCPUDH0 = 0x00;
+  52   1        PWMCPUDL1 = 0x00;
+C51 COMPILER V9.60.0.0   GEN                                                               11/04/2023 21:14:42 PAGE 2   
+
+  53   1        PWMCPUDH1 = 0x00;
+  54   1        SFRPAGE = 0x00;
+  55   1        waitNms(20); // wait for pwm to update
+  56   1        PCA0POL = 0;
+  57   1        PIN_MOSFET = false; // turn mosfet off
+  58   1        set_button_powerdown();
+  59   1        led_pattern = 0; // LED OFF
+  60   1        waitNms(200); // just in case to not brick the device
+  61   1        // going to shutdown
+  62   1        REG0CN = REG0CN_STOPCF__SHUTDOWN;
+  63   1        PCON0 = PCON0_CPUSTOP__BMASK;
+  64   1      }
+  65          
+  66          // new voltage reading comes every 16ms.
+  67          // For half a second it will be 31 (500/16)
+  68          bit isVoltageLow(void){
+  69   1        bit retval = false;
+  70   1        uint16_t volt = readVoltage();
+  71   1        if(volt !=0){
+  72   2            if(volt <= LOW_BATTERY_VOLTAGE){
+  73   3              low_volt_counter++;
+  74   3              if(low_volt_counter > 31) retval = true;
+  75   3            }else{
+  76   3                low_volt_counter = 0;
+  77   3            }
+  78   2        }
+  79   1        return retval;
+  80   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    153    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =      1    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----       1
+   EDATA SIZE       =   ----    ----
+   HDATA SIZE       =   ----    ----
+   XDATA CONST SIZE =   ----    ----
+   FAR CONST SIZE   =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

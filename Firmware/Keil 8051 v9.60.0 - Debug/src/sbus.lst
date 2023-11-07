@@ -1,0 +1,60 @@
+C51 COMPILER V9.60.0.0   SBUS                                                              11/04/2023 11:36:02 PAGE 1   
+
+
+C51 COMPILER V9.60.0.0, COMPILATION OF MODULE SBUS
+OBJECT MODULE PLACED IN .\src\sbus.OBJ
+COMPILER INVOKED BY: C:\SiliconLabs\SimplicityStudio\v5_3\developer\toolchains\keil_8051\9.60\BIN\C51.exe C:\src\Tennp\G
+                    -it\SBUS_PWM_PWR\Firmware\src\sbus.c OMF2 SMALL DEBUG OBJECTEXTEND ROM(LARGE) WARNINGLEVEL(2) FLOATFUZZY(3) OPTIMIZE(8,SP
+                    -EED) DEFINE(DEBUG=1) INTVECTOR(0X0000) INTPROMOTE INCDIR(C:/SiliconLabs/SimplicityStudio/v5_3/developer/sdks/8051/v4.2.3
+                    -//Device/EFM8BB51/inc;C:/SiliconLabs/SimplicityStudio/v5_3/developer/sdks/8051/v4.2.3//Device/shared/si8051Base) PRINT(.
+                    -\src\sbus.lst) COND PAGEWIDTH(120) PAGELENGTH(65) OBJECT(.\src\sbus.OBJ)
+
+line level    source
+
+   1          #include "sbus.h"
+   2          #include "main.h"
+   3          
+   4          volatile uint8_t sbus_packet[25];
+   5          volatile uint8_t sbus_cntr = 0;
+   6          volatile uint16_t sbus_ch[4];
+   7          volatile bit sbus_packet_received = false;
+   8          
+   9          // Returns validity of packet (no failsafe or similar)
+  10          bit sbus_parse(void){
+  11   1        bit lost_frame_bit, failsafe_bit;
+  12   1        bit returnval = false;
+  13   1        if(sbus_packet[0]== SBUS_HEADER){
+  14   2          sbus_ch[0] = (int16_t)(sbus_packet[1] |
+  15   2                                      ((sbus_packet[2] << 8) & 0x07FF));
+  16   2          sbus_ch[1]  = (int16_t)((sbus_packet[2] >> 3) |
+  17   2                                      ((sbus_packet[3] << 5) & 0x07FF));
+  18   2          sbus_ch[2]  = (int16_t)((sbus_packet[3] >> 6) |
+  19   2                                      (sbus_packet[4] << 2) |
+  20   2                                      ((sbus_packet[5] << 10) & 0x07FF));
+  21   2          sbus_ch[3]  = (int16_t)((sbus_packet[5] >> 1) |
+  22   2                                      ((sbus_packet[6] << 7) & 0x07FF));
+  23   2          lost_frame_bit = sbus_packet[23] & SBUS_LOST_FRAME_MASK;
+  24   2          failsafe_bit = sbus_packet[23] & SBUS_FAILSAFE_MASK;
+  25   2      
+  26   2          if(!lost_frame_bit && !failsafe_bit) returnval = true;
+  27   2        }
+  28   1        return returnval;
+  29   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    134    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =     34    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =      1       3
+   EDATA SIZE       =   ----    ----
+   HDATA SIZE       =   ----    ----
+   XDATA CONST SIZE =   ----    ----
+   FAR CONST SIZE   =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

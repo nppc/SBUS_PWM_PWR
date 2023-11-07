@@ -1,0 +1,161 @@
+C51 COMPILER V9.60.0.0   INTERRUPTS                                                        11/04/2023 11:48:35 PAGE 1   
+
+
+C51 COMPILER V9.60.0.0, COMPILATION OF MODULE INTERRUPTS
+OBJECT MODULE PLACED IN .\src\Interrupts.OBJ
+COMPILER INVOKED BY: C:\SiliconLabs\SimplicityStudio\v5_3\developer\toolchains\keil_8051\9.60\BIN\C51.exe C:\src\Tennp\G
+                    -it\SBUS_PWM_PWR\Firmware\src\Interrupts.c OMF2 SMALL DEBUG OBJECTEXTEND ROM(LARGE) WARNINGLEVEL(2) FLOATFUZZY(3) OPTIMIZ
+                    -E(8,SPEED) DEFINE(DEBUG=1) INTVECTOR(0X0000) INTPROMOTE INCDIR(C:/SiliconLabs/SimplicityStudio/v5_3/developer/sdks/8051/
+                    -v4.2.3//Device/EFM8BB51/inc;C:/SiliconLabs/SimplicityStudio/v5_3/developer/sdks/8051/v4.2.3//Device/shared/si8051Base) P
+                    -RINT(.\src\Interrupts.lst) COND PAGEWIDTH(120) PAGELENGTH(65) OBJECT(.\src\Interrupts.OBJ)
+
+line level    source
+
+   1          //#pragma src
+   2          
+   3          #include "main.h"
+   4          #include "sbus.h"
+   5          
+   6          //-----------------------------------------------------------------------------
+   7          // PCA0_ISR
+   8          //-----------------------------------------------------------------------------
+   9          //
+  10          // PCA0 ISR Content goes here. Remember to clear flag bits:
+  11          // PCA0CN0::CCF0 (PCA Module 0 Capture/Compare Flag)
+  12          // PCA0CN0::CCF1 (PCA Module 1 Capture/Compare Flag)
+  13          // PCA0CN0::CCF2 (PCA Module 2 Capture/Compare Flag)
+  14          // PCA0CN0::CF (PCA Counter/Timer Overflow Flag)
+  15          // PCA0PWM::COVF (Cycle Overflow Flag)
+  16          //
+  17          //-----------------------------------------------------------------------------
+  18          
+  19          SI_INTERRUPT (PCA0_ISR, PCA0_IRQn)
+  20          {
+  21   1        if(PCA0CN0_CCF0){
+  22   2            PCA0CPL0 = pwm_channels[0].u8[1];
+  23   2            PCA0CPH0 = pwm_channels[0].u8[0];
+  24   2            PCA0CN0_CCF0 = 0;
+  25   2        }else if(PCA0CN0_CCF1){
+  26   2            PCA0CPL1 = pwm_channels[1].u8[1];
+  27   2            PCA0CPH1 = pwm_channels[1].u8[0];
+  28   2            PCA0CN0_CCF1 = 0;
+  29   2        }
+  30   1        PCA0CN0_CF = 0;
+  31   1      }
+  32          
+  33          
+  34          //-----------------------------------------------------------------------------
+  35          // UART1_ISR
+  36          //-----------------------------------------------------------------------------
+  37          //
+  38          // UART1 ISR Content goes here. Remember to clear flag bits:
+  39          // SCON1::RI (Receive Interrupt Flag)
+  40          // SCON1::TI (Transmit Interrupt Flag)
+  41          // UART1FCN1::RFRQ (Receive FIFO Request)
+  42          // UART1FCN1::TFRQ (Transmit FIFO Request)
+  43          //
+  44          //-----------------------------------------------------------------------------
+  45          SI_INTERRUPT (UART1_ISR, UART1_IRQn)
+  46          {
+  47   1        if(SCON1_RI){
+  48   2          uint8_t tmp = SBUF1;
+  49   2          SCON1_RI = 0;
+  50   2          sbus_packet[sbus_cntr]=tmp;
+  51   2          sbus_packet_received = false;
+  52   2          if(sbus_cntr<24) sbus_cntr++;
+C51 COMPILER V9.60.0.0   INTERRUPTS                                                        11/04/2023 11:48:35 PAGE 2   
+
+  53   2        }
+  54   1      }
+  55          
+  56          //-----------------------------------------------------------------------------
+  57          // TIMER2_ISR
+  58          //-----------------------------------------------------------------------------
+  59          //
+  60          // TIMER2 ISR Content goes here. Remember to clear flag bits:
+  61          // TMR2CN0::TF2H (Timer # High Byte Overflow Flag)
+  62          // TMR2CN0::TF2L (Timer # Low Byte Overflow Flag)
+  63          //
+  64          //-----------------------------------------------------------------------------
+  65          SI_INTERRUPT (TIMER2_ISR, TIMER2_IRQn)
+  66          {
+  67   1        if(sbus_cntr==24) sbus_packet_received = true;
+  68   1        sbus_cntr = 0; // reset counter as UART1 timeout occurred
+  69   1        TMR2CN0_TF2H = 0;
+  70   1      }
+  71          
+  72          //-----------------------------------------------------------------------------
+  73          // TIMER3_ISR
+  74          //-----------------------------------------------------------------------------
+  75          //
+  76          // TIMER3 ISR Content goes here. Remember to clear flag bits:
+  77          // TMR3CN0::TF3H (Timer # High Byte Overflow Flag)
+  78          // TMR3CN0::TF3L (Timer # Low Byte Overflow Flag)
+  79          //
+  80          //-----------------------------------------------------------------------------
+  81          // Overflows every 16ms
+  82          SI_INTERRUPT (TIMER3_ISR, TIMER3_IRQn)
+  83          {
+  84   1        TMR3CN0 &= ~(TMR3CN0_TF3H__BMASK);
+  85   1        delay_powering_counter++;
+  86   1        timeout_tick = true;
+  87   1      
+  88   1        led_pattern_counter++;
+  89   1        if(led_pattern == 0){
+  90   2            PIN_LED = 1; // OFF
+  91   2            led_pattern_counter = 0;
+  92   2        }else if(led_pattern == 1){
+  93   2            PIN_LED = 0; // ON
+  94   2            led_pattern_counter = 0;
+  95   2        }else if(led_pattern == 2){
+  96   2            if(led_pattern_counter < 5){
+  97   3                PIN_LED = 0; // ON
+  98   3            }else if(led_pattern_counter < 10){
+  99   3                PIN_LED = 1; // OFF
+ 100   3            }else led_pattern_counter = 0;
+ 101   2        }else if(led_pattern == 3){
+ 102   2            if(led_pattern_counter < 80){
+ 103   3                PIN_LED = 0; // ON
+ 104   3            }else if(led_pattern_counter < 100){
+ 105   3                PIN_LED = 1; // OFF
+ 106   3            }else led_pattern_counter = 0;
+ 107   2        }
+ 108   1      
+ 109   1        // start new ADC conversion
+ 110   1        SFRPAGE = 0x00; // now we can screw SFR page
+ 111   1        if(!ADC0CN0_ADINT){
+ 112   2            ADC0CN0_ADBUSY = true;
+ 113   2        }
+ 114   1      }
+ 115          
+C51 COMPILER V9.60.0.0   INTERRUPTS                                                        11/04/2023 11:48:35 PAGE 3   
+
+ 116          
+ 117          SI_INTERRUPT (PWM0_ISR, PWM_IRQn)
+ 118          {
+ 119   1        PWMIF &= ~PWMIF_CTROVIF__BMASK;
+ 120   1      
+ 121   1        PWMCPUDL0 = pwm_channels[2].u8[1];
+ 122   1        PWMCPUDH0 = pwm_channels[2].u8[0];
+ 123   1        PWMCPUDL1 = pwm_channels[3].u8[1];
+ 124   1        PWMCPUDH1 = pwm_channels[3].u8[0];
+ 125   1      
+ 126   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    263    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----       1
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+   EDATA SIZE       =   ----    ----
+   HDATA SIZE       =   ----    ----
+   XDATA CONST SIZE =   ----    ----
+   FAR CONST SIZE   =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)
